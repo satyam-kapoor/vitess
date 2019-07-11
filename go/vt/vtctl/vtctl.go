@@ -320,6 +320,9 @@ var commands = []commandGroup{
 			{"VDiff", commandVDiff,
 				"[-source_cell=<cell>] [-target_cell=<cell>] [-tablet_types=replica] [-filtered_replication_wait_time=30s] <keyspace.workflow>",
 				"Perform a diff of all tables in the workflow"},
+			{"Materialize", commandMaterialize,
+				"[--workflow=<workflow>] [--create_table] [--is_reference] [--primary_vindex=col:vindex] [--expression=<expression>] <source_keyspace.table> <target_keyspace.table>",
+				"Creae a materialized view"},
 			{"MigrateServedTypes", commandMigrateServedTypes,
 				"[-cells=c1,c2,...] [-reverse] [-skip-refresh-state] <keyspace/shard> <served tablet type>",
 				"Migrates a serving type from the source shard to the shards that it replicates to. This command also rebuilds the serving graph. The <keyspace/shard> argument can specify any of the shards involved in the migration."},
@@ -1860,6 +1863,24 @@ func splitKeyspaceWorkflow(in string) (keyspace, workflow string, err error) {
 		return "", "", fmt.Errorf("invalid format for <keyspace.workflow>: %s", in)
 	}
 	return splits[0], splits[1], nil
+}
+
+func commandMaterialize(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
+	workflow := subFlags.String("workflow", "", "Unique workflow name")
+	purpose := subFlags.String("purpose", "", "Purpose can be omitted, 'unified_view' or 'migration'")
+	createTable := subFlags.Bool("create_table", false, "Create the table")
+	isReference := subFlags.Bool("is_reference", false, "Create the table")
+	primaryVindex := subFlags.String("primary_vindex", "", "Primary vindex specified as col:vindex")
+	expression := subFlags.String("expression", "", "Expression representing the transformation")
+	if err := subFlags.Parse(args); err != nil {
+		return err
+	}
+	if subFlags.NArg() != 2 {
+		return fmt.Errorf("two arguments are required: <source_keyspace.table> <target_keyspace.table>")
+	}
+	src := subFlags.Arg(0)
+	tgt := subFlags.Arg(1)
+	return wr.Materialize(ctx, src, tgt, *workflow, *purpose, *createTable, *isReference, *primaryVindex, *expression)
 }
 
 func commandMigrateServedTypes(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
