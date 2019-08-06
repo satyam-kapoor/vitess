@@ -25,6 +25,7 @@ import (
 	"vitess.io/vitess/go/sqltypes"
 	"vitess.io/vitess/go/vt/key"
 	querypb "vitess.io/vitess/go/vt/proto/query"
+	topodatapb "vitess.io/vitess/go/vt/proto/topodata"
 	"vitess.io/vitess/go/vt/proto/vtgate"
 	vtgatepb "vitess.io/vitess/go/vt/proto/vtgate"
 	vtrpcpb "vitess.io/vitess/go/vt/proto/vtrpc"
@@ -78,6 +79,12 @@ func (lu *ConsistentLookup) IsUnique() bool {
 // Map can map ids to key.Destination objects.
 func (lu *ConsistentLookup) Map(vcursor VCursor, ids []sqltypes.Value) ([]key.Destination, error) {
 	out := make([]key.Destination, 0, len(ids))
+	if lu.writeOnly {
+		for range ids {
+			out = append(out, key.DestinationKeyRange{KeyRange: &topodatapb.KeyRange{}})
+		}
+		return out, nil
+	}
 
 	results, err := lu.lkp.Lookup(vcursor, ids)
 	if err != nil {
@@ -132,6 +139,13 @@ func (lu *ConsistentLookupUnique) IsUnique() bool {
 // Map can map ids to key.Destination objects.
 func (lu *ConsistentLookupUnique) Map(vcursor VCursor, ids []sqltypes.Value) ([]key.Destination, error) {
 	out := make([]key.Destination, 0, len(ids))
+	if lu.writeOnly {
+		for range ids {
+			out = append(out, key.DestinationKeyRange{KeyRange: &topodatapb.KeyRange{}})
+		}
+		return out, nil
+	}
+
 	results, err := lu.lkp.Lookup(vcursor, ids)
 	if err != nil {
 		return nil, err
@@ -156,6 +170,7 @@ func (lu *ConsistentLookupUnique) Map(vcursor VCursor, ids []sqltypes.Value) ([]
 // Unique and a Lookup.
 type clCommon struct {
 	name         string
+	writeOnly    bool
 	lkp          lookupInternal
 	keyspace     string
 	ownerTable   string
@@ -170,6 +185,11 @@ type clCommon struct {
 // newCLCommon is commone code for the consistent lookup vindexes.
 func newCLCommon(name string, m map[string]string) (*clCommon, error) {
 	lu := &clCommon{name: name}
+	var err error
+	lu.writeOnly, err = boolFromMap(m, "write_only")
+	if err != nil {
+		return nil, err
+	}
 
 	if err := lu.lkp.Init(m, false /* autocommit */, false /* upsert */); err != nil {
 		return nil, err
@@ -206,6 +226,13 @@ func (lu *clCommon) IsFunctional() bool {
 
 // Verify returns true if ids maps to ksids.
 func (lu *clCommon) Verify(vcursor VCursor, ids []sqltypes.Value, ksids [][]byte) ([]bool, error) {
+	if lu.writeOnly {
+		out := make([]bool, len(ids))
+		for i := range ids {
+			out[i] = true
+		}
+		return out, nil
+	}
 	return lu.lkp.VerifyCustom(vcursor, ids, ksidsToValues(ksids), vtgate.CommitOrder_PRE)
 }
 
