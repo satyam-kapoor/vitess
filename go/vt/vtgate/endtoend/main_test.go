@@ -134,6 +134,32 @@ create table t4_music_lookup (
 	user_id bigint,
 	primary key (music_id)
 ) Engine=InnoDB;
+
+create table upsert_primary (
+	pk bigint,
+	ksnum_id bigint,
+	primary key (pk)
+	) Engine=InnoDB;
+
+create table upsert_owned (
+	owned bigint,
+	ksnum_id bigint,
+	primary key (owned)
+	) Engine=InnoDB;
+
+create table upsert (
+	pk bigint,
+	owned bigint,
+	user_id bigint,
+	col bigint,
+	primary key (pk)
+	) Engine=InnoDB;
+
+create table vt_user (
+	id bigint,
+	name varchar(64),
+	primary key (id)
+	) Engine=InnoDB;
 `
 
 	vschema = &vschemapb.Keyspace{
@@ -193,6 +219,25 @@ create table t4_music_lookup (
 					"autocommit": "true",
 				},
 				Owner: "t4_music",
+			},
+			"upsert_primary": {
+				Type: "lookup_hash_unique",
+				Params: map[string]string{
+					"table":      "upsert_primary",
+					"from":       "pk",
+					"to":         "ksnum_id",
+					"autocommit": "true",
+				},
+			},
+			"upsert_owned": {
+				Type: "lookup_hash_unique",
+				Params: map[string]string{
+					"table":      "upsert_owned",
+					"from":       "owned",
+					"to":         "ksnum_id",
+					"autocommit": "false",
+				},
+				Owner: "upsert",
 			},
 		},
 		Tables: map[string]*vschemapb.Table{
@@ -317,6 +362,36 @@ create table t4_music_lookup (
 			"t4_music_lookup": {
 				ColumnVindexes: []*vschemapb.ColumnVindex{{
 					Column: "user_id",
+					Name:   "hash",
+				}},
+			},
+			"upsert": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "pk",
+					Name:   "upsert_primary",
+				}, {
+					Column: "owned",
+					Name:   "upsert_owned",
+				}, {
+					Column: "user_id",
+					Name:   "hash",
+				}},
+			},
+			"upsert_primary": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "pk",
+					Name:   "hash",
+				}},
+			},
+			"upsert_owned": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "owned",
+					Name:   "hash",
+				}},
+			},
+			"vt_user": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "id",
 					Name:   "hash",
 				}},
 			},
