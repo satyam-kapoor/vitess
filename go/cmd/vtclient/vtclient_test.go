@@ -20,6 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -81,17 +83,27 @@ func TestVtclient(t *testing.T) {
 
 	vtgateAddr := fmt.Sprintf("localhost:%v", cluster.Env.PortForProtocol("vtcombo", "grpc"))
 	queries := []struct {
-		args         []string
-		rowsAffected int64
-		errMsg       string
+		args             []string
+		rowsAffected     int64
+		errMsg           string
+		verifyFunction   func(t *testing.T, ResultRows results, Values []int)
+		valuesToVerifies []int
 	}{
 		{
-			args: []string{"SELECT * FROM table1"},
+			args:             []string{"SELECT * FROM table1"},
+			verifyFunction:   testNoRowPresent,
+			valuesToVerifies: []int{},
 		},
 		{
 			args: []string{"-target", "@master", "-bind_variables", `[ 1, 100 ]`,
 				"INSERT INTO table1 (id, i) VALUES (:v1, :v2)"},
 			rowsAffected: 1,
+		},
+		{
+			args:             []string{"SELECT * FROM table1"},
+			verifyFunction:   testRowPresence,
+			rowsAffected:     1,
+			valuesToVerifies: []int{1, 100},
 		},
 		{
 			args: []string{"-target", "@master",
@@ -101,21 +113,44 @@ func TestVtclient(t *testing.T) {
 		{
 			args: []string{"-target", "@master",
 				"SELECT * FROM table1"},
-			rowsAffected: 1,
+			rowsAffected:     1,
+			verifyFunction:   testRowPresence,
+			valuesToVerifies: []int{1, 101},
+		},
+		{
+			args: []string{"-target", "@master", "-bind_variables", `[1]`,
+				"SELECT * FROM table1 where id = :v1"},
+			rowsAffected:     1,
+			verifyFunction:   testRowPresence,
+			valuesToVerifies: []int{1, 101},
 		},
 		{
 			args: []string{"-target", "@master", "-bind_variables", `[ 1 ]`,
 				"DELETE FROM table1 WHERE id = :v1"},
-			rowsAffected: 1,
+			rowsAffected:     1,
+			verifyFunction:   testNoRowPresent,
+			valuesToVerifies: []int{},
 		},
 		{
 			args: []string{"-target", "@master",
 				"SELECT * FROM table1"},
-			rowsAffected: 0,
+			rowsAffected:     0,
+			verifyFunction:   testNoRowPresent,
+			valuesToVerifies: []int{},
 		},
 		{
 			args:   []string{"SELECT * FROM nonexistent"},
 			errMsg: "table nonexistent not found",
+		},
+		{
+			args: []string{"-target", "@master",
+				"SELECT i FROM table1 where id = :v1", "-bind_variables", `[1]`},
+			errMsg: "no additional arguments after the query allowed",
+		},
+		{
+			args: []string{"-target", "invalid",
+				"SELECT i FROM table1"},
+			errMsg: "keyspace invalid not found in vschema",
 		},
 	}
 
@@ -134,12 +169,45 @@ func TestVtclient(t *testing.T) {
 			}
 			return
 		}
-
+		if q.valuesToVerifies != nil && results != nil {
+			q.verifyFunction(t, *results, q.valuesToVerifies)
+		}
 		if err != nil {
 			t.Fatalf("vtclient %v failed: %v", os.Args[1:], err)
 		}
 		if got, want := results.rowsAffected, q.rowsAffected; got != want {
 			t.Fatalf("wrong rows affected for query: %v got = %v, want = %v", os.Args[1:], got, want)
 		}
+	}
+}
+
+func testRowPresence(t *testing.T, ResultRows results, Values []int) {
+	// Field match
+	fieldWants := []string{"id", "i"}
+	fieldGots := ResultRows.Fields
+	if !reflect.DeepEqual(fieldWants, fieldGots) {
+		t.Errorf("select:\n%v want\n%v", fieldWants, fieldGots)
+	}
+	// Row data match
+	want := make([]int, 0)
+	for _, v := range Values {
+		want = append(want, v)
+	}
+
+	got := make([]int, 0)
+	if len(ResultRows.Rows) > 0 {
+		for _, value := range ResultRows.Rows[0] {
+			intValue, _ := strconv.Atoi(value)
+			got = append(got, intValue)
+		}
+	}
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("select:\n%v want\n%v", got, want)
+	}
+}
+
+func testNoRowPresent(t *testing.T, ResultRows results, Values []int) {
+	if got, want := len(ResultRows.Rows), 0; got != want {
+		t.Errorf("select:\n%v want\n%v", got, want)
 	}
 }
