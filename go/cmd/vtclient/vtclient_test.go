@@ -86,7 +86,7 @@ func TestVtclient(t *testing.T) {
 		args             []string
 		rowsAffected     int64
 		errMsg           string
-		verifyFunction   func(t *testing.T, ResultRows results, Values []int)
+		verifyFunction   func(t *testing.T, Rows [][]string, Fields []string, Values []int)
 		valuesToVerifies []int
 	}{
 		{
@@ -170,7 +170,7 @@ func TestVtclient(t *testing.T) {
 			return
 		}
 		if q.valuesToVerifies != nil && results != nil {
-			q.verifyFunction(t, *results, q.valuesToVerifies)
+			q.verifyFunction(t, results.Rows, results.Fields, q.valuesToVerifies)
 		}
 		if err != nil {
 			t.Fatalf("vtclient %v failed: %v", os.Args[1:], err)
@@ -181,12 +181,11 @@ func TestVtclient(t *testing.T) {
 	}
 }
 
-func testRowPresence(t *testing.T, ResultRows results, Values []int) {
+func testRowPresence(t *testing.T, Rows [][]string, Fields []string, Values []int) {
 	// Field match
 	fieldWants := []string{"id", "i"}
-	fieldGots := ResultRows.Fields
-	if !reflect.DeepEqual(fieldWants, fieldGots) {
-		t.Errorf("select:\n%v want\n%v", fieldWants, fieldGots)
+	if !reflect.DeepEqual(fieldWants, Fields) {
+		t.Errorf("select:\n%v want\n%v", fieldWants, Fields)
 	}
 	// Row data match
 	want := make([]int, 0)
@@ -195,8 +194,8 @@ func testRowPresence(t *testing.T, ResultRows results, Values []int) {
 	}
 
 	got := make([]int, 0)
-	if len(ResultRows.Rows) > 0 {
-		for _, value := range ResultRows.Rows[0] {
+	if len(Rows) > 0 {
+		for _, value := range Rows[0] {
 			intValue, _ := strconv.Atoi(value)
 			got = append(got, intValue)
 		}
@@ -206,8 +205,8 @@ func testRowPresence(t *testing.T, ResultRows results, Values []int) {
 	}
 }
 
-func testNoRowPresent(t *testing.T, ResultRows results, Values []int) {
-	if got, want := len(ResultRows.Rows), 0; got != want {
+func testNoRowPresent(t *testing.T, Rows [][]string, Fields []string, Values []int) {
+	if got, want := len(Rows), 0; got != want {
 		t.Errorf("select:\n%v want\n%v", got, want)
 	}
 }
