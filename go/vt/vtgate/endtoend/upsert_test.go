@@ -32,7 +32,7 @@ func TestUpsert(t *testing.T) {
 	// Create lookup entries for primary vindex:
 	// No entry for 2. upsert_primary is not owned.
 	// So, we need to pre-create entries that the
-	// subsequent will insert will use to compute the
+	// subsequent insert will use to compute the
 	// keyspace id.
 	exec(t, conn, "begin")
 	exec(t, conn, "insert into upsert_primary(pk, ksnum_id) values(1, 1), (3, 3), (4, 4), (5, 5), (6, 6)")
@@ -48,6 +48,11 @@ func TestUpsert(t *testing.T) {
 	if got, want := fmt.Sprintf("%v", qr.Rows), "[[INT64(1) INT64(1) INT64(1) INT64(1)] [INT64(3) INT64(3) INT64(3) INT64(0)] [INT64(4) INT64(4) INT64(4) INT64(0)] [INT64(5) INT64(5) INT64(5) INT64(5)] [INT64(6) INT64(6) INT64(6) INT64(6)]]"; got != want {
 		t.Errorf("select:\n%v want\n%v", got, want)
 	}
+	//upsert_owned should have entries for 1,3,4,5,6
+	qr = exec(t, conn, "select owned, ksnum_id from upsert_owned order by owned")
+	if got, want := fmt.Sprintf("%v", qr.Rows), "[[INT64(1) INT64(1)] [INT64(3) INT64(3)] [INT64(4) INT64(4)] [INT64(5) INT64(5)] [INT64(6) INT64(6)]]"; got != want {
+		t.Errorf("select:\n%v want\n%v", got, want)
+	}
 
 	// insert ignore
 	exec(t, conn, "insert into upsert_primary(pk, ksnum_id) values(7, 7)")
@@ -58,6 +63,11 @@ func TestUpsert(t *testing.T) {
 
 	qr = exec(t, conn, "select pk, owned, user_id, col from upsert order by pk")
 	if got, want := fmt.Sprintf("%v", qr.Rows), "[[INT64(1) INT64(1) INT64(1) INT64(1)] [INT64(3) INT64(3) INT64(3) INT64(0)] [INT64(4) INT64(4) INT64(4) INT64(0)] [INT64(5) INT64(5) INT64(5) INT64(5)] [INT64(6) INT64(6) INT64(6) INT64(6)] [INT64(7) INT64(7) INT64(7) INT64(7)]]"; got != want {
+		t.Errorf("select:\n%v want\n%v", got, want)
+	}
+	//upsert_owned should have entries for 1,3,4,5,6,7
+	qr = exec(t, conn, "select owned, ksnum_id from upsert_owned order by owned")
+	if got, want := fmt.Sprintf("%v", qr.Rows), "[[INT64(1) INT64(1)] [INT64(3) INT64(3)] [INT64(4) INT64(4)] [INT64(5) INT64(5)] [INT64(6) INT64(6)] [INT64(7) INT64(7)]]"; got != want {
 		t.Errorf("select:\n%v want\n%v", got, want)
 	}
 
