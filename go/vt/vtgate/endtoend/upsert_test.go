@@ -16,6 +16,7 @@ package endtoend
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"vitess.io/vitess/go/mysql"
@@ -69,6 +70,14 @@ func TestUpsert(t *testing.T) {
 	qr = exec(t, conn, "select owned, ksnum_id from upsert_owned order by owned")
 	if got, want := fmt.Sprintf("%v", qr.Rows), "[[INT64(1) INT64(1)] [INT64(3) INT64(3)] [INT64(4) INT64(4)] [INT64(5) INT64(5)] [INT64(6) INT64(6)] [INT64(7) INT64(7)]]"; got != want {
 		t.Errorf("select:\n%v want\n%v", got, want)
+	}
+
+	//insert fails if all vindexes leads to different keyspace-id for a row
+	exec(t, conn, "insert into upsert_primary(pk, ksnum_id) values(9, 9)")
+	qr, err = conn.ExecuteFetch("insert into upsert(pk, owned, user_id, col) values(9, 9, 8, 8)", 1000, false)
+	want := "does not map to keyspace ids"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("second insert: %v, must contain %s", err, want)
 	}
 
 }
