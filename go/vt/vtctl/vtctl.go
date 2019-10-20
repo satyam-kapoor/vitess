@@ -1890,7 +1890,7 @@ func commandReshard(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.F
 	if subFlags.NArg() != 4 {
 		return fmt.Errorf("four arguments are required: workflow, keyspace, from_shards, to_shards")
 	}
-	workflow := subFlags.Arg(1)
+	workflow := subFlags.Arg(0)
 	keyspace := subFlags.Arg(1)
 	from := strings.Split(subFlags.Arg(2), ",")
 	to := strings.Split(subFlags.Arg(3), ",")
