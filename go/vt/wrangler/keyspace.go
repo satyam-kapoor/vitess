@@ -136,9 +136,9 @@ func (wr *Wrangler) Migrate(ctx context.Context, workflow, sourceKeyspace, targe
 }
 
 // CreateLookupVindex starts the process to create a lookup vindex.
-func (wr *Wrangler) CreateLookupVindex(ctx context.Context, workflow, on, backedBy, vindexType, mode string, createTable, createVindex bool) error {
-	if workflow == "" || on == "" || backedBy == "" || vindexType == "" || mode == "" {
-		return fmt.Errorf("workflow, on, backedBy, vindexType and mode are required parameters")
+func (wr *Wrangler) CreateLookupVindex(ctx context.Context, on, backedBy, vindexType, mode string, createTable, createVindex bool) error {
+	if on == "" || backedBy == "" || vindexType == "" || mode == "" {
+		return fmt.Errorf("on, backedBy, vindexType and mode are required parameters")
 	}
 	sourceKeyspace, sourceTable, sourceCol := splitString3(on, ".")
 	sourceShards, err := wr.ts.GetShardNames(ctx, sourceKeyspace)
@@ -149,6 +149,7 @@ func (wr *Wrangler) CreateLookupVindex(ctx context.Context, workflow, on, backed
 		return fmt.Errorf("keyspace %s has no source shards", sourceKeyspace)
 	}
 	targetKeyspace, targetTable, primaryVindex := splitString3(backedBy, ".")
+	workflow := targetTable
 	targetShards, err := wr.ts.GetShardNames(ctx, targetKeyspace)
 	if err != nil {
 		return err
@@ -326,7 +327,7 @@ func (wr *Wrangler) MultiMaterialize(ctx context.Context, workflow, sourceKeyspa
 }
 
 // Materialize materializes a table.
-func (wr *Wrangler) Materialize(ctx context.Context, workflow, sourceSpec, targetSpec string, createTable, isReference bool, primaryVindex string) error {
+func (wr *Wrangler) Materialize(ctx context.Context, sourceSpec, targetSpec string, createTable, isReference bool, primaryVindex string) error {
 	var sourceKeyspace, expression string
 	if sqlparser.Preview(sourceSpec) == sqlparser.StmtSelect {
 		qualified, err := sqlparser.TableFromStatement(sourceSpec)
@@ -349,6 +350,7 @@ func (wr *Wrangler) Materialize(ctx context.Context, workflow, sourceSpec, targe
 	}
 
 	targetKeyspace, targetTable := splitString2(targetSpec, ".")
+	workflow := targetTable
 	if targetTable == "" {
 		return fmt.Errorf("must specify target table name")
 	}
@@ -501,8 +503,8 @@ func (wr *Wrangler) vreplicate(ctx context.Context, workflow, sourceKeyspace, ta
 	return nil
 }
 
-// ExposeVindex exposes a lookup vindex.
-func (wr *Wrangler) ExposeVindex(ctx context.Context, targetKeyspace, workflow string) error {
+// ExternalizeVindex exposes a lookup vindex.
+func (wr *Wrangler) ExternalizeVindex(ctx context.Context, targetKeyspace, workflow string) error {
 	bls, err := wr.expose(ctx, targetKeyspace, workflow, false /* autoRoute */)
 	if err != nil {
 		return err
@@ -525,8 +527,8 @@ func (wr *Wrangler) ExposeVindex(ctx context.Context, targetKeyspace, workflow s
 	return wr.ts.SaveVSchema(ctx, sourceKeyspace, sourceVSchema)
 }
 
-// Expose makes a materialized table visible to the app.
-func (wr *Wrangler) Expose(ctx context.Context, targetKeyspace, workflow string, autoRoute bool) error {
+// Externalize makes a materialized table visible to the app.
+func (wr *Wrangler) Externalize(ctx context.Context, targetKeyspace, workflow string, autoRoute bool) error {
 	_, err := wr.expose(ctx, targetKeyspace, workflow, autoRoute)
 	return err
 }

@@ -321,26 +321,26 @@ var commands = []commandGroup{
 				"[-source_cell=<cell>] [-target_cell=<cell>] [-tablet_types=replica] [-filtered_replication_wait_time=30s] <keyspace.workflow>",
 				"Perform a diff of all tables in the workflow"},
 			{"Reshard", commandReshard,
-				"<workflow_name> <keyspace> <from_shards> <to_shards>",
-				"Start a Resharding process. Example: Reshard workflow001 ks '0' '-80,80-'"},
+				"<keyspace.workflow> <source_shards> <target_shards>",
+				"Start a Resharding process. Example: Reshard ks.workflow001 '0' '-80,80-'"},
 			{"Migrate", commandMigrate,
-				"[-create_table] <workflow_name> <source_keyspace> <target_keyspace> <table_specs>",
+				"[-create_table] <target_keyspace.workflow> <source_keyspace> <table_specs>",
 				"Initiate a migration of tables from one keyspace to another. For an unsharded keyspace target or if tables are already defined in the vschema, table_specs is 't1,t2,t3'. For sharded, it's 't1.colVindex:vindexname,t2.colVindex:vindexName'"},
 			{"CreateLookupVindex", commandCreateLookupVindex,
-				"-workflow=<workflow> -on=<keyspace.table.column> -backed_by=<keyspace.table[.colVindex:vindexName]> -vindex_type=<type> -mode=[backfill|best_effort|eventually_consistent] [-create_table] [-create_vindex]",
+				"-on=<keyspace.table.column> -backed_by=<keyspace.table[.colVindex:vindexName]> -vindex_type=<type> -mode=[backfill|best_effort|eventually_consistent] [-create_table] [-create_vindex]",
 				"Create a lookup Vindex"},
-			{"ExposeVindex", commandExposeVindex,
-				"<target_keyspace> <workflow_name>",
-				"Expose a lookup vindex."},
+			{"ExternalizeVindex", commandExternalizeVindex,
+				"<keyspace.workflow>",
+				"Externalize a lookup vindex."},
 			{"MultiMaterialize", commandMultiMaterialize,
-				"[-create_table] <workflow_name> <source_keyspace> <target_keyspace> <tables>",
+				"[-create_table] <target_keyspace.workflow> <source_keyspace> <tables>",
 				"Creae multiple materialized views"},
 			{"Materialize", commandMaterialize,
-				"[-create_table] [-is_reference] [-primary_vindex=col:vindex] <workflow_name> <source_keyspace.table/sql expression> <target_keyspace.table>",
+				"[-create_table] [-is_reference] [-primary_vindex=col:vindex] <source_keyspace.table/sql expression> <target_keyspace.table>",
 				"Creae a materialized view"},
-			{"Expose", commandExpose,
-				"[-auto_route] <target_keyspace> <workflow_name>",
-				"Expose a materialized view."},
+			{"Externalize", commandExternalize,
+				"[-auto_route] <keyspace.workflow>",
+				"Externalize a materialized view."},
 			{"MigrateServedTypes", commandMigrateServedTypes,
 				"[-cells=c1,c2,...] [-reverse] [-skip-refresh-state] <keyspace/shard> <served tablet type>",
 				"Migrates a serving type from the source shard to the shards that it replicates to. This command also rebuilds the serving graph. The <keyspace/shard> argument can specify any of the shards involved in the migration."},
@@ -1887,14 +1887,16 @@ func commandReshard(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.F
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 4 {
-		return fmt.Errorf("four arguments are required: workflow, keyspace, from_shards, to_shards")
+	if subFlags.NArg() != 3 {
+		return fmt.Errorf("three arguments are required: <keyspace.workflow>, source_shards, target_shards")
 	}
-	workflow := subFlags.Arg(0)
-	keyspace := subFlags.Arg(1)
-	from := strings.Split(subFlags.Arg(2), ",")
-	to := strings.Split(subFlags.Arg(3), ",")
-	return wr.Reshard(ctx, workflow, keyspace, from, to)
+	keyspace, workflow, err := splitKeyspaceWorkflow(subFlags.Arg(0))
+	if err != nil {
+		return err
+	}
+	source := strings.Split(subFlags.Arg(1), ",")
+	target := strings.Split(subFlags.Arg(2), ",")
+	return wr.Reshard(ctx, workflow, keyspace, source, target)
 }
 
 func commandMigrate(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
@@ -1902,18 +1904,19 @@ func commandMigrate(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.F
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 4 {
-		return fmt.Errorf("four arguments are required: <workflow_name> <source_keyspace> <target_keyspace> <table_specs>")
+	if subFlags.NArg() != 3 {
+		return fmt.Errorf("four arguments are required: <target_keyspace.workflow> <source_keyspace> <table_specs>")
 	}
-	workflow := subFlags.Arg(0)
+	targetKeyspace, workflow, err := splitKeyspaceWorkflow(subFlags.Arg(0))
+	if err != nil {
+		return err
+	}
 	sourceKeyspace := subFlags.Arg(1)
-	targetKeyspace := subFlags.Arg(2)
-	tableSpecs := subFlags.Arg(3)
+	tableSpecs := subFlags.Arg(2)
 	return wr.Migrate(ctx, workflow, sourceKeyspace, targetKeyspace, tableSpecs, *createTable)
 }
 
 func commandCreateLookupVindex(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
-	workflow := subFlags.String("workflow", "", "Workflow Name")
 	on := subFlags.String("on", "", "The keyspace.table.column to create the vindex on")
 	backedBy := subFlags.String("backed_by", "", "The backing table specs")
 	vindexType := subFlags.String("vindex_type", "", "Vindex Type, like consistent_lookup_unique")
@@ -1923,19 +1926,22 @@ func commandCreateLookupVindex(ctx context.Context, wr *wrangler.Wrangler, subFl
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	return wr.CreateLookupVindex(ctx, *workflow, *on, *backedBy, *vindexType, *mode, *createTable, *createVindex)
+	return wr.CreateLookupVindex(ctx, *on, *backedBy, *vindexType, *mode, *createTable, *createVindex)
 }
 
-func commandExposeVindex(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
+func commandExternalizeVindex(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 2 {
-		return fmt.Errorf("two arguments are required: <target_keyspace> <workflow_name>")
+
+	if subFlags.NArg() != 1 {
+		return fmt.Errorf("<keyspace.workflow> is required")
 	}
-	targetKeyspace := subFlags.Arg(0)
-	workflow := subFlags.Arg(1)
-	return wr.ExposeVindex(ctx, targetKeyspace, workflow)
+	keyspace, workflow, err := splitKeyspaceWorkflow(subFlags.Arg(0))
+	if err != nil {
+		return err
+	}
+	return wr.ExternalizeVindex(ctx, keyspace, workflow)
 }
 
 func commandMultiMaterialize(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
@@ -1943,13 +1949,15 @@ func commandMultiMaterialize(ctx context.Context, wr *wrangler.Wrangler, subFlag
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 4 {
-		return fmt.Errorf("four arguments are required: <workflow_name> <source_keyspace> <target_keyspace> <table_specs>")
+	if subFlags.NArg() != 3 {
+		return fmt.Errorf("three arguments are required: <target_keyspace.workflow> <source_keyspace> <table_specs>")
 	}
-	workflow := subFlags.Arg(0)
+	targetKeyspace, workflow, err := splitKeyspaceWorkflow(subFlags.Arg(0))
+	if err != nil {
+		return err
+	}
 	sourceKeyspace := subFlags.Arg(1)
-	targetKeyspace := subFlags.Arg(2)
-	tableSpecs := subFlags.Arg(3)
+	tableSpecs := subFlags.Arg(2)
 	return wr.MultiMaterialize(ctx, workflow, sourceKeyspace, targetKeyspace, tableSpecs, *createTable)
 }
 
@@ -1960,26 +1968,28 @@ func commandMaterialize(ctx context.Context, wr *wrangler.Wrangler, subFlags *fl
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 3 {
-		return fmt.Errorf("three arguments are required: <workflow_name> <source_keyspace.table/sql expression> <target_keyspace.table>")
+	if subFlags.NArg() != 2 {
+		return fmt.Errorf("two arguments are required: <source_keyspace.table/sql expression> <target_keyspace.table>")
 	}
-	workflow := subFlags.Arg(0)
-	sourceSpec := subFlags.Arg(1)
-	targetSpec := subFlags.Arg(2)
-	return wr.Materialize(ctx, workflow, sourceSpec, targetSpec, *createTable, *isReference, *primaryVindex)
+	sourceSpec := subFlags.Arg(0)
+	targetSpec := subFlags.Arg(1)
+	return wr.Materialize(ctx, sourceSpec, targetSpec, *createTable, *isReference, *primaryVindex)
 }
 
-func commandExpose(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
+func commandExternalize(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
 	autoRoute := subFlags.Bool("auto_route", false, "automatically route to source and target")
 	if err := subFlags.Parse(args); err != nil {
 		return err
 	}
-	if subFlags.NArg() != 2 {
-		return fmt.Errorf("two arguments are required: <target_keyspace> <workflow_name>")
+
+	if subFlags.NArg() != 1 {
+		return fmt.Errorf("<keyspace.workflow> is required")
 	}
-	targetKeyspace := subFlags.Arg(0)
-	workflow := subFlags.Arg(1)
-	return wr.Expose(ctx, targetKeyspace, workflow, *autoRoute)
+	keyspace, workflow, err := splitKeyspaceWorkflow(subFlags.Arg(0))
+	if err != nil {
+		return err
+	}
+	return wr.Externalize(ctx, keyspace, workflow, *autoRoute)
 }
 
 func commandMigrateServedTypes(ctx context.Context, wr *wrangler.Wrangler, subFlags *flag.FlagSet, args []string) error {
