@@ -135,6 +135,32 @@ create table t4_music_lookup (
 	primary key (music_id)
 ) Engine=InnoDB;
 
+create table upsert_primary (
+	pk bigint,
+	ksnum_id bigint,
+	primary key (pk)
+	) Engine=InnoDB;
+
+create table upsert_owned (
+	owned bigint,
+	ksnum_id bigint,
+	primary key (owned)
+	) Engine=InnoDB;
+
+create table upsert (
+	pk bigint,
+	owned bigint,
+	user_id bigint,
+	col bigint,
+	primary key (pk)
+	) Engine=InnoDB;
+
+create table vt_user (
+	id bigint,
+	name varchar(64),
+	primary key (id)
+	) Engine=InnoDB;
+
 create table twopc_user (
 	user_id bigint,
 	name varchar(128),
@@ -146,6 +172,27 @@ create table twopc_lookup (
 	id bigint,
 	primary key (id)
 ) Engine=InnoDB;
+
+create table cola_map (
+	cola varchar(64),
+	kid bigint,
+	primary key (cola, kid)
+	) Engine=InnoDB;
+
+create table colb_colc_map (
+	colb varchar(64),
+	colc varchar(64),
+	kid bigint,
+	primary key (colb, colc, kid)
+	) Engine=InnoDB;
+
+create table vt_multicolvin (
+	kid bigint,
+	cola varchar(64),
+	colb varchar(64),
+	colc varchar(64),
+	primary key (kid)
+	) Engine=InnoDB;
 `
 
 	vschema = &vschemapb.Keyspace{
@@ -206,6 +253,25 @@ create table twopc_lookup (
 				},
 				Owner: "t4_music",
 			},
+			"upsert_primary": {
+				Type: "lookup_hash_unique",
+				Params: map[string]string{
+					"table":      "upsert_primary",
+					"from":       "pk",
+					"to":         "ksnum_id",
+					"autocommit": "true",
+				},
+			},
+			"upsert_owned": {
+				Type: "lookup_hash_unique",
+				Params: map[string]string{
+					"table":      "upsert_owned",
+					"from":       "owned",
+					"to":         "ksnum_id",
+					"autocommit": "false",
+				},
+				Owner: "upsert",
+			},
 			"twopc_lookup_vdx": {
 				Type: "lookup_hash_unique",
 				Params: map[string]string{
@@ -215,6 +281,24 @@ create table twopc_lookup (
 					"autocommit": "true",
 				},
 				Owner: "twopc_user",
+			},
+			"cola_map": {
+				Type: "lookup_hash",
+				Params: map[string]string{
+					"table": "cola_map",
+					"from":  "cola",
+					"to":    "kid",
+				},
+				Owner: "vt_multicolvin",
+			},
+			"colb_colc_map": {
+				Type: "lookup_hash",
+				Params: map[string]string{
+					"table": "colb_colc_map",
+					"from":  "colb,colc",
+					"to":    "kid",
+				},
+				Owner: "vt_multicolvin",
 			},
 		},
 		Tables: map[string]*vschemapb.Table{
@@ -342,6 +426,36 @@ create table twopc_lookup (
 					Name:   "hash",
 				}},
 			},
+			"upsert": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "pk",
+					Name:   "upsert_primary",
+				}, {
+					Column: "owned",
+					Name:   "upsert_owned",
+				}, {
+					Column: "user_id",
+					Name:   "hash",
+				}},
+			},
+			"upsert_primary": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "pk",
+					Name:   "hash",
+				}},
+			},
+			"upsert_owned": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "owned",
+					Name:   "hash",
+				}},
+			},
+			"vt_user": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "id",
+					Name:   "hash",
+				}},
+			},
 			"twopc_user": {
 				ColumnVindexes: []*vschemapb.ColumnVindex{{
 					Column: "user_id",
@@ -354,6 +468,30 @@ create table twopc_lookup (
 			"twopc_lookup": {
 				ColumnVindexes: []*vschemapb.ColumnVindex{{
 					Column: "id",
+					Name:   "hash",
+				}},
+			},
+			"vt_multicolvin": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "kid",
+					Name:   "hash",
+				}, {
+					Column: "cola",
+					Name:   "cola_map",
+				}, {
+					Columns: []string{"colb", "colc"},
+					Name:    "colb_colc_map",
+				}},
+			},
+			"cola_map": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "kid",
+					Name:   "hash",
+				}},
+			},
+			"colb_colc_map": {
+				ColumnVindexes: []*vschemapb.ColumnVindex{{
+					Column: "kid",
 					Name:   "hash",
 				}},
 			},
