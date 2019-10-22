@@ -193,6 +193,7 @@ create table vt_multicolvin (
 	colc varchar(64),
 	primary key (kid)
 	) Engine=InnoDB;
+
 `
 
 	vschema = &vschemapb.Keyspace{
