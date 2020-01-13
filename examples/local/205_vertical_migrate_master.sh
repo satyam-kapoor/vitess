@@ -19,6 +19,6 @@
 
 set -e
 
-./lvtctl.sh MigrateServedFrom customer/0 master
+./lvtctl.sh MigrateWrites customer.CustomerMig
 
 disown -a

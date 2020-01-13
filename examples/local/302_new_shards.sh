@@ -27,7 +27,7 @@ SHARD=80- CELL=zone1 KEYSPACE=customer UID_BASE=400 "$script_root/vttablet-up.sh
 
 ./lvtctl.sh InitShardMaster -force customer/-80 zone1-300
 ./lvtctl.sh InitShardMaster -force customer/80- zone1-400
-./lvtctl.sh CopySchemaShard customer/0 customer/-80
-./lvtctl.sh CopySchemaShard customer/0 customer/80-
+#./lvtctl.sh CopySchemaShard customer/0 customer/-80
+#./lvtctl.sh CopySchemaShard customer/0 customer/80-
 
 disown -a

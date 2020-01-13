@@ -26,7 +26,7 @@ script_root=$(dirname "${BASH_SOURCE}")
 CELL=zone1 KEYSPACE=customer UID_BASE=200 "$script_root/vttablet-up.sh"
 
 ./lvtctl.sh InitShardMaster -force customer/0 zone1-200
-./lvtctl.sh CopySchemaShard -tables customer,corder commerce/0 customer/0
+#./lvtctl.sh CopySchemaShard -tables customer,corder commerce/0 customer/0
 ./lvtctl.sh ApplyVSchema -vschema_file vschema_commerce_vsplit.json commerce
 ./lvtctl.sh ApplyVSchema -vschema_file vschema_customer_vsplit.json customer
 

@@ -27,12 +27,13 @@ script_root=$(dirname "${BASH_SOURCE}")
 source "$script_root/env.sh"
 
 # shellcheck disable=SC2086
-vtworker \
-    $TOPOLOGY_FLAGS \
-    -cell zone1 \
-    -log_dir "$VTDATAROOT"/tmp \
-    -alsologtostderr \
-    -use_v3_resharding_mode \
-    VerticalSplitClone -min_healthy_tablets=1 -tables=customer,corder customer/0
+vtctlclient $TOPOLOGY_FLAGS Migrate -workflow=CustomerMig commerce customer customer
+#vtworker \
+#    $TOPOLOGY_FLAGS \
+#    -cell zone1 \
+#    -log_dir "$VTDATAROOT"/tmp \
+#    -alsologtostderr \
+#    -use_v3_resharding_mode \
+#    VerticalSplitClone -min_healthy_tablets=1 -tables=customer,corder customer/0
 
 disown -a

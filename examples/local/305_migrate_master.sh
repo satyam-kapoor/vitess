@@ -18,7 +18,7 @@
 
 set -e
 
-./lvtctl.sh MigrateServedTypes customer/0 master
+./lvtctl.sh MigrateWrites customer.reshard
 # data has been copied over to shards, and databases for the new shards are now available
 
 disown -a

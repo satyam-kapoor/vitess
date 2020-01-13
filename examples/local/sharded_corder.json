@@ -1,0 +1,12 @@
+{
+	"corder": {
+		"column_vindexes": [{
+			"column": "customer_id",
+			"name": "hash"
+		}],
+		"auto_increment": {
+			"column": "order_id",
+			"sequence": "order_seq"
+		}
+	}
+}

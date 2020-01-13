@@ -18,8 +18,7 @@
 # tablets of types rdonly and replica
 
 set -e
-
-./lvtctl.sh MigrateServedFrom customer/0 rdonly
-./lvtctl.sh MigrateServedFrom customer/0 replica
+./lvtctl.sh MigrateReads -tablet_type=rdonly customer.CustomerMig
+./lvtctl.sh MigrateReads -tablet_type=replica customer.CustomerMig
 
 disown -a

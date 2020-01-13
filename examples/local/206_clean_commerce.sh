@@ -20,8 +20,9 @@
 set -e
 
 ./lvtctl.sh ApplySchema -sql-file drop_commerce_tables.sql commerce
-./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer,corder -remove commerce/0 rdonly
-./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer,corder -remove commerce/0 replica
-./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer,corder -remove commerce/0 master
+./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer -remove commerce/0 rdonly
+./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer -remove commerce/0 replica
+./lvtctl.sh SetShardTabletControl -blacklisted_tables=customer -remove commerce/0 master
+./lvtctl.sh ApplyRoutingRules -rules='{}'
 
 disown -a

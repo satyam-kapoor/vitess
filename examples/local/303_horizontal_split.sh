@@ -27,12 +27,13 @@ script_root=$(dirname "${BASH_SOURCE}")
 source "${script_root}/env.sh"
 
 # shellcheck disable=SC2086
-vtworker \
-    $TOPOLOGY_FLAGS \
-    -cell zone1 \
-    -log_dir "$VTDATAROOT"/tmp \
-    -alsologtostderr \
-    -use_v3_resharding_mode \
-    SplitClone -min_healthy_rdonly_tablets=1 customer/0
+./lvtctl.sh Reshard customer.reshard 0 '-80,80-'
+#vtworker \
+#    $TOPOLOGY_FLAGS \
+#    -cell zone1 \
+#    -log_dir "$VTDATAROOT"/tmp \
+#    -alsologtostderr \
+#    -use_v3_resharding_mode \
+#    SplitClone -min_healthy_rdonly_tablets=1 customer/0
 
 disown -a
