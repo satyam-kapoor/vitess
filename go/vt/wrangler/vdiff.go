@@ -655,10 +655,8 @@ func (ms *mergeSorter) StreamExecute(vcursor engine.VCursor, bindVars map[string
 	rss := make([]*srvtopo.ResolvedShard, 0, len(rr.participants))
 	bvs := make([]map[string]*querypb.BindVariable, 0, len(rr.participants))
 	for shard := range rr.participants {
-		rss = append(rss, &srvtopo.ResolvedShard{
-			Target: &querypb.Target{
-				Shard: shard,
-			},
+		rss = append(rss, &querypb.Target{
+			Shard: shard,
 		})
 		bvs = append(bvs, bindVars)
 	}
@@ -687,12 +685,12 @@ func (rr *resultReader) Context() context.Context {
 }
 
 func (rr *resultReader) StreamExecuteMulti(query string, rss []*srvtopo.ResolvedShard, bindVars []map[string]*querypb.BindVariable, callback func(reply *sqltypes.Result) error) error {
-	for result := range rr.participants[rss[0].Target.Shard].result {
+	for result := range rr.participants[rss[0].Shard].result {
 		if err := callback(result); err != nil {
 			return err
 		}
 	}
-	return rr.participants[rss[0].Target.Shard].err
+	return rr.participants[rss[0].Shard].err
 }
 
 //-----------------------------------------------------------------

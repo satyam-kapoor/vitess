@@ -150,7 +150,7 @@ func (f *loggingVCursor) AutocommitApproval() bool {
 }
 
 func (f *loggingVCursor) ExecuteStandalone(query string, bindvars map[string]*querypb.BindVariable, rs *srvtopo.ResolvedShard) (*sqltypes.Result, error) {
-	f.log = append(f.log, fmt.Sprintf("ExecuteStandalone %s %v %s %s", query, printBindVars(bindvars), rs.Target.Keyspace, rs.Target.Shard))
+	f.log = append(f.log, fmt.Sprintf("ExecuteStandalone %s %v %s %s", query, printBindVars(bindvars), rs.Keyspace, rs.Shard))
 	return f.nextResult()
 }
 
@@ -210,10 +210,8 @@ func (f *loggingVCursor) ResolveDestinations(keyspace string, ids []*querypb.Val
 				vi = len(rss)
 				visited[shard] = vi
 				rss = append(rss, &srvtopo.ResolvedShard{
-					Target: &querypb.Target{
-						Keyspace: keyspace,
-						Shard:    shard,
-					},
+					Keyspace: keyspace,
+					Shard:    shard,
 				})
 				if ids != nil {
 					values = append(values, nil)
@@ -291,7 +289,7 @@ func printBindVars(bindvars map[string]*querypb.BindVariable) string {
 func printResolvedShardQueries(rss []*srvtopo.ResolvedShard, queries []*querypb.BoundQuery) string {
 	buf := &bytes.Buffer{}
 	for i, rs := range rss {
-		fmt.Fprintf(buf, "%s.%s: %s {%s} ", rs.Target.Keyspace, rs.Target.Shard, queries[i].Sql, printBindVars(queries[i].BindVariables))
+		fmt.Fprintf(buf, "%s.%s: %s {%s} ", rs.Keyspace, rs.Shard, queries[i].Sql, printBindVars(queries[i].BindVariables))
 	}
 	return buf.String()
 }
@@ -299,7 +297,7 @@ func printResolvedShardQueries(rss []*srvtopo.ResolvedShard, queries []*querypb.
 func printResolvedShardsBindVars(rss []*srvtopo.ResolvedShard, bvs []map[string]*querypb.BindVariable) string {
 	buf := &bytes.Buffer{}
 	for i, rs := range rss {
-		fmt.Fprintf(buf, "%s.%s: {%v} ", rs.Target.Keyspace, rs.Target.Shard, printBindVars(bvs[i]))
+		fmt.Fprintf(buf, "%s.%s: {%v} ", rs.Keyspace, rs.Shard, printBindVars(bvs[i]))
 	}
 	return buf.String()
 }

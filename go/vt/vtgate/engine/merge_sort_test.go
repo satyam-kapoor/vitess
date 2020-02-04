@@ -57,10 +57,10 @@ func TestMergeSortNormal(t *testing.T) {
 		Col: 0,
 	}}
 	rss := []*srvtopo.ResolvedShard{
-		{Target: &querypb.Target{Shard: "0"}},
-		{Target: &querypb.Target{Shard: "1"}},
-		{Target: &querypb.Target{Shard: "2"}},
-		{Target: &querypb.Target{Shard: "3"}},
+		{Shard: "0"},
+		{Shard: "1"},
+		{Shard: "2"},
+		{Shard: "3"},
 	}
 	bvs := []map[string]*querypb.BindVariable{nil, nil, nil, nil}
 
@@ -127,10 +127,10 @@ func TestMergeSortDescending(t *testing.T) {
 		Desc: true,
 	}}
 	rss := []*srvtopo.ResolvedShard{
-		{Target: &querypb.Target{Shard: "0"}},
-		{Target: &querypb.Target{Shard: "1"}},
-		{Target: &querypb.Target{Shard: "2"}},
-		{Target: &querypb.Target{Shard: "3"}},
+		{Shard: "0"},
+		{Shard: "1"},
+		{Shard: "2"},
+		{Shard: "3"},
 	}
 	bvs := []map[string]*querypb.BindVariable{nil, nil, nil, nil}
 
@@ -186,10 +186,10 @@ func TestMergeSortEmptyResults(t *testing.T) {
 		Col: 0,
 	}}
 	rss := []*srvtopo.ResolvedShard{
-		{Target: &querypb.Target{Shard: "0"}},
-		{Target: &querypb.Target{Shard: "1"}},
-		{Target: &querypb.Target{Shard: "2"}},
-		{Target: &querypb.Target{Shard: "3"}},
+		{Shard: "0"},
+		{Shard: "1"},
+		{Shard: "2"},
+		{Shard: "3"},
 	}
 	bvs := []map[string]*querypb.BindVariable{nil, nil, nil, nil}
 
@@ -227,7 +227,7 @@ func TestMergeSortResultFailures(t *testing.T) {
 		Col: 0,
 	}}
 	rss := []*srvtopo.ResolvedShard{
-		{Target: &querypb.Target{Shard: "0"}},
+		{Shard: "0"},
 	}
 	bvs := []map[string]*querypb.BindVariable{nil}
 
@@ -283,8 +283,8 @@ func TestMergeSortDataFailures(t *testing.T) {
 		Col: 0,
 	}}
 	rss := []*srvtopo.ResolvedShard{
-		{Target: &querypb.Target{Shard: "0"}},
-		{Target: &querypb.Target{Shard: "1"}},
+		{Shard: "0"},
+		{Shard: "1"},
 	}
 	bvs := []map[string]*querypb.BindVariable{nil, nil}
 
@@ -332,7 +332,7 @@ type streamVCursor struct {
 // The shard is specified by the only entry in shardVars. At the
 // end of a stream, if sendErr is set, that error is returned.
 func (t *streamVCursor) StreamExecuteMulti(query string, rss []*srvtopo.ResolvedShard, bindVars []map[string]*querypb.BindVariable, callback func(reply *sqltypes.Result) error) error {
-	shard := rss[0].Target.Shard
+	shard := rss[0].Shard
 	for _, r := range t.shardResults[shard].results {
 		if err := callback(r); err != nil {
 			return err

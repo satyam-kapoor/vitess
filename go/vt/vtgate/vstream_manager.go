@@ -193,7 +193,7 @@ func (vs *vstream) streamFromTablet(ctx context.Context, sgtid *binlogdatapb.Sha
 			return vterrors.Errorf(vtrpcpb.Code_INVALID_ARGUMENT, "unexpected number or shards: %v", rss)
 		}
 		// Safe to access sgtid.Gtid here (because it can't change until streaming begins).
-		err = rss[0].QueryService.VStream(ctx, rss[0].Target, sgtid.Gtid, vs.filter, func(events []*binlogdatapb.VEvent) error {
+		err = vs.resolver.QueryService.VStream(ctx, rss[0], sgtid.Gtid, vs.filter, func(events []*binlogdatapb.VEvent) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

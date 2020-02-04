@@ -904,9 +904,9 @@ func (vtg *VTGate) SplitQuery(
 	if vtg.isKeyspaceRangeBasedSharded(keyspace, srvKeyspace) {
 		querySplitToQueryPartFunc = func(querySplit *querypb.QuerySplit, rs *srvtopo.ResolvedShard) (*vtgatepb.SplitQueryResponse_Part, error) {
 			// Use ValidateShardName to extract the keyrange.
-			_, kr, err := topo.ValidateShardName(rs.Target.Shard)
+			_, kr, err := topo.ValidateShardName(rs.Shard)
 			if err != nil {
-				return nil, fmt.Errorf("cannot extract keyrange from shard name %v: %v", rs.Target.Shard, err)
+				return nil, fmt.Errorf("cannot extract keyrange from shard name %v: %v", rs.Shard, err)
 			}
 			if kr == nil {
 				// Keyrange can be nil for the shard (e.g. for single-sharded keyspaces during resharding).
@@ -932,7 +932,7 @@ func (vtg *VTGate) SplitQuery(
 				Query: querySplit.Query,
 				ShardPart: &vtgatepb.SplitQueryResponse_ShardPart{
 					Keyspace: keyspace,
-					Shards:   []string{rs.Target.Shard},
+					Shards:   []string{rs.Shard},
 				},
 				Size: querySplit.RowCount,
 			}, nil

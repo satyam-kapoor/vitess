@@ -1144,7 +1144,7 @@ func (e *Executor) handleOther(ctx context.Context, safeSession *SafeSession, sq
 		if len(rss) != 1 {
 			return nil, vterrors.Errorf(vtrpcpb.Code_UNAVAILABLE, "keyspace %s has no shards", destKeyspace)
 		}
-		destKeyspace, dest = rss[0].Target.Keyspace, key.DestinationShard(rss[0].Target.Shard)
+		destKeyspace, dest = rss[0].Keyspace, key.DestinationShard(rss[0].Shard)
 	}
 
 	switch dest.(type) {

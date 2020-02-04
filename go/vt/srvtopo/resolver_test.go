@@ -212,8 +212,8 @@ func TestResolveDestinations(t *testing.T) {
 		}
 		badShards := false
 		for i, rs := range rss {
-			if rs.Target.Shard != testCase.expectedShards[i] {
-				t.Errorf("%v: expected rss[%v] to be '%v', but got: %v", testCase.name, i, testCase.expectedShards[i], rs.Target.Shard)
+			if rs.Shard != testCase.expectedShards[i] {
+				t.Errorf("%v: expected rss[%v] to be '%v', but got: %v", testCase.name, i, testCase.expectedShards[i], rs.Shard)
 				badShards = true
 			}
 		}

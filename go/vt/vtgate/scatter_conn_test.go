@@ -308,18 +308,14 @@ func TestMultiExecs(t *testing.T) {
 
 	rss := []*srvtopo.ResolvedShard{
 		{
-			Target: &querypb.Target{
-				Keyspace: "TestMultiExecs",
-				Shard:    "0",
-			},
-			QueryService: sbc0,
+			Keyspace:   "TestMultiExecs",
+			Shard:      "0",
+			TabletType: topodatapb.TabletType_REPLICA,
 		},
 		{
-			Target: &querypb.Target{
-				Keyspace: "TestMultiExecs",
-				Shard:    "1",
-			},
-			QueryService: sbc1,
+			Keyspace:   "TestMultiExecs",
+			Shard:      "1",
+			TabletType: topodatapb.TabletType_REPLICA,
 		},
 	}
 	queries := []*querypb.BoundQuery{
@@ -356,22 +352,6 @@ func TestMultiExecs(t *testing.T) {
 	sbc0.Queries = nil
 	sbc1.Queries = nil
 
-	rss = []*srvtopo.ResolvedShard{
-		{
-			Target: &querypb.Target{
-				Keyspace: "TestMultiExecs",
-				Shard:    "0",
-			},
-			QueryService: sbc0,
-		},
-		{
-			Target: &querypb.Target{
-				Keyspace: "TestMultiExecs",
-				Shard:    "1",
-			},
-			QueryService: sbc1,
-		},
-	}
 	bvs := []map[string]*querypb.BindVariable{
 		{
 			"bv0": sqltypes.Int64BindVariable(0),

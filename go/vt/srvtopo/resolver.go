@@ -38,8 +38,8 @@ type Resolver struct {
 	// topoServ is the srvtopo.Server to use for topo queries.
 	topoServ Server
 
-	// queryService is the actual query service that will be used to execute queries.
-	queryService queryservice.QueryService
+	// QueryService is the actual query service that will be used to execute queries.
+	QueryService queryservice.QueryService
 
 	// localCell is the local cell for the queries.
 	localCell string
@@ -53,23 +53,17 @@ type Resolver struct {
 func NewResolver(topoServ Server, queryService queryservice.QueryService, localCell string) *Resolver {
 	return &Resolver{
 		topoServ:     topoServ,
-		queryService: queryService,
+		QueryService: queryService,
 		localCell:    localCell,
 	}
 }
 
 // ResolvedShard contains everything we need to send a query to a shard.
-type ResolvedShard struct {
-	// Target describes the target shard.
-	Target *querypb.Target
-
-	// QueryService is the actual way to execute the query.
-	QueryService queryservice.QueryService
-}
+type ResolvedShard = querypb.Target
 
 // ResolvedShardEqual is an equality check on *ResolvedShard.
 func ResolvedShardEqual(rs1, rs2 *ResolvedShard) bool {
-	return proto.Equal(rs1.Target, rs2.Target)
+	return proto.Equal(rs1, rs2)
 }
 
 // ResolvedShardsEqual is an equality check on []*ResolvedShard.
@@ -134,10 +128,7 @@ func (r *Resolver) GetAllShards(ctx context.Context, keyspace string, tabletType
 		// Later we can fallback to another cell if needed.
 		// We would then need to read the SrvKeyspace there too.
 		target.Cell = ""
-		res[i] = &ResolvedShard{
-			Target:       target,
-			QueryService: r.queryService,
-		}
+		res[i] = target
 	}
 	return res, srvKeyspace, nil
 }
@@ -193,10 +184,7 @@ func (r *Resolver) ResolveDestinations(ctx context.Context, keyspace string, tab
 				// We would then need to read the SrvKeyspace there too.
 				target.Cell = ""
 				s = len(result)
-				result = append(result, &ResolvedShard{
-					Target:       target,
-					QueryService: r.queryService,
-				})
+				result = append(result, target)
 				if ids != nil {
 					values = append(values, nil)
 				}
