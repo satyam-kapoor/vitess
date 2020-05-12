@@ -147,6 +147,9 @@ type tabletConnector struct {
 	qs     queryservice.QueryService
 }
 
+func NewTabletConnector(tablet *topodatapb.Tablet) *tabletConnector {
+	return newTabletConnector(tablet)
+}
 func newTabletConnector(tablet *topodatapb.Tablet) *tabletConnector {
 	return &tabletConnector{
 		tablet: tablet,

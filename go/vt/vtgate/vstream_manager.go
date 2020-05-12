@@ -81,6 +81,7 @@ func newVStreamManager(resolver *srvtopo.Resolver, serv srvtopo.Server, cell str
 
 func (vsm *vstreamManager) VStream(ctx context.Context, tabletType topodatapb.TabletType, vgtid *binlogdatapb.VGtid, filter *binlogdatapb.Filter, send func(events []*binlogdatapb.VEvent) error) error {
 	vgtid, filter, err := vsm.resolveParams(ctx, tabletType, vgtid, filter)
+	log.Infof("In vtgate.vstream_manager with vtgtid %v, filter %v, tabletType %s", vgtid, filter, tabletType)
 	if err != nil {
 		return err
 	}

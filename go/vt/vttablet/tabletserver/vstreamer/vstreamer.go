@@ -103,6 +103,13 @@ type streamerPlan struct {
 // send: callback function to send events.
 func newVStreamer(ctx context.Context, cp dbconfigs.Connector, se *schema.Engine, startPos string, filter *binlogdatapb.Filter, vschema *localVSchema, send func([]*binlogdatapb.VEvent) error) *vstreamer {
 	ctx, cancel := context.WithCancel(ctx)
+	log.Infof("TSV: newVStreamer pos %s", startPos)
+	debugSend := func(evs []*binlogdatapb.VEvent) error {
+		for i, ev := range evs {
+			log.Infof("debugSend %d : %v", i, ev)
+		}
+		return send(evs)
+	}
 	return &vstreamer{
 		ctx:      ctx,
 		cancel:   cancel,
@@ -110,7 +117,7 @@ func newVStreamer(ctx context.Context, cp dbconfigs.Connector, se *schema.Engine
 		se:       se,
 		startPos: startPos,
 		filter:   filter,
-		send:     send,
+		send:     debugSend,
 		vevents:  make(chan *localVSchema, 1),
 		vschema:  vschema,
 		plans:    make(map[uint64]*streamerPlan),
@@ -168,6 +175,7 @@ func (vs *vstreamer) Stream() error {
 	if err := vs.se.Open(); err != nil {
 		return wrapError(err, vs.pos)
 	}
+	log.Infof("TSV: NewSlaveConnection pos %s", vs.pos)
 
 	conn, err := binlog.NewSlaveConnection(vs.cp)
 	if err != nil {
