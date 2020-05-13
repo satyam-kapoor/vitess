@@ -14,7 +14,7 @@ func (bs *BlStreamer) initTablesForCopy(ctx context.Context) error {
 	}
 	bs.tableKeys = tableKeys
 
-	plan, err := buildReplicatorPlan(bs.filter, bs.tableKeys, nil)
+	plan, err := buildReplicatorPlan(bs.source.Filter, bs.tableKeys, nil)
 	if err != nil {
 		return err
 	}
@@ -30,11 +30,11 @@ func (bs *BlStreamer) initTablesForCopy(ctx context.Context) error {
 
 		bs.stateStore.Init(tables)
 
-		if err := bs.setState(binlogplayer.VReplicationCopying, ""); err != nil {
+		if err := bs.stateStore.SetState(binlogplayer.VReplicationCopying, ""); err != nil {
 			return err
 		}
 	} else {
-		if err := bs.setState(binlogplayer.BlpStopped, "There is nothing to replicate"); err != nil {
+		if err := bs.stateStore.SetState(binlogplayer.BlpStopped, "There is nothing to replicate"); err != nil {
 			return err
 		}
 	}

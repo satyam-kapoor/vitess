@@ -54,7 +54,7 @@ func (mysqld *Mysqld) GetSchema(dbName string, tables, excludeTables []string, i
 	backtickDBName := sqlescape.EscapeID(dbName)
 
 	// get the database creation command
-	qr, fetchErr := mysqld.FetchSuperQuery(ctx, fmt.Sprintf("SHOW CREATE DATABASE IF NOT EXISTS %s", backtickDBName))
+	qr, fetchErr := mysqld.FetchSuperQuery(ctx, fmt.Sprintf(" SHOW CREATE DATABASE IF NOT EXISTS %s", backtickDBName))
 	if fetchErr != nil {
 		return nil, fetchErr
 	}

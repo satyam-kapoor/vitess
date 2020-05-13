@@ -50,7 +50,7 @@ func TestBasicVreplicationWorkflow(t *testing.T) {
 	vc = InitCluster(t, cellName)
 	assert.NotNil(t, vc)
 
-	defer vc.TearDown()
+	//defer vc.TearDown()
 
 	cell = vc.Cells[cellName]
 	vc.AddKeyspace(t, cell, "product", "0", initialProductVSchema, initialProductSchema, defaultReplicas, defaultRdonly, 100)
@@ -63,6 +63,7 @@ func TestBasicVreplicationWorkflow(t *testing.T) {
 	verifyClusterHealth(t)
 	insertInitialData(t)
 	shardCustomer(t, true)
+	return
 
 	shardOrders(t)
 	shardMerchant(t)
@@ -122,9 +123,9 @@ func shardCustomer(t *testing.T, testReverse bool) {
 		t.Fatal(err)
 	}
 
-	if err := vc.VtctlClient.ExecuteCommand("MoveTables", "-cell="+cell.Name, "-workflow=p2c",
+	if output, err := vc.VtctlClient.ExecuteCommandWithOutput("MoveTables", "-cell="+cell.Name, "-workflow=p2c",
 		"-tablet_types="+"replica,rdonly", "product", "customer", "customer"); err != nil {
-		t.Fatalf("MoveTables command failed with %+v\n", err)
+		t.Fatalf("MoveTables command failed with output %s, error %+v\n", output, err)
 	}
 
 	customerTab1 := vc.Cells[cell.Name].Keyspaces["customer"].Shards["-80"].Tablets["zone1-200"].Vttablet
