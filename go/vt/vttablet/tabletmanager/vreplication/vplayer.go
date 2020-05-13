@@ -88,6 +88,11 @@ func newVPlayer(vr *vreplicator, settings binlogplayer.VRSettings, copyState map
 	}
 }
 
+func blPlay(context.....)
+type blplayer interface {
+	play(context.Context)
+}
+
 // play is the entry point for playing binlogs.
 func (vp *vplayer) play(ctx context.Context) error {
 	if !vp.stopPos.IsZero() && vp.startPos.AtLeast(vp.stopPos) {

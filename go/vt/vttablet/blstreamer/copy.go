@@ -90,7 +90,7 @@ func (bs *BlStreamer) catchup(ctx context.Context, copyState map[string]*sqltype
 // copyTable performs the synchronized copy of the next set of rows from
 // the current table being copied. Each packet received is transactionally
 // committed with the lastpk. This allows for consistent resumability.
-func (bs *BlStreamer) copyTable(ctx context.Context, tableName string, copyState map[string]*sqltypes.Result) error {
+func (bs *BlStreamer) vreplCopyTable(ctx context.Context, tableName string, copyState map[string]*sqltypes.Result) error {
 	log.Infof("Copying table %s, lastpk: %v", tableName, copyState[tableName])
 
 	plan, err := buildReplicatorPlan(bs.source.Filter, bs.tableKeys, nil)
@@ -103,18 +103,7 @@ func (bs *BlStreamer) copyTable(ctx context.Context, tableName string, copyState
 		return fmt.Errorf("plan not found for table: %s, current plans are: %#v", tableName, plan.TargetTables)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, copyTimeout)
-	defer cancel()
-
-	var lastpkpb *querypb.QueryResult
-	if lastpkqr := copyState[tableName]; lastpkqr != nil {
-		lastpkpb = sqltypes.ResultToProto3(lastpkqr)
-	}
-
-	var pkfields []*querypb.Field
-	var sLastPk string
-
-	err = bs.vsClient.VStreamRows(ctx, initialPlan.SendRule.Filter, lastpkpb, func(rows *binlogdatapb.VStreamRowsResponse) error {
+	err = bs.copyTable(ctx, tableName, initialPlan.SendRule.Filter, copyState, func(rows *binlogdatapb.VStreamRowsResponse) error {
 		select {
 		case <-ctx.Done():
 			return io.EOF
@@ -142,6 +131,75 @@ func (bs *BlStreamer) copyTable(ctx context.Context, tableName string, copyState
 		}
 
 		bs.sink.PutRows(ctx, rows)
+
+		if sLastPk, err = bs.stateStore.UpdateCopyState(tableName, rows.Lastpk, pkfields); err != nil {
+			return err
+		}
+		return nil
+	})
+	// If there was a timeout, return without an error.
+	select {
+	case <-ctx.Done():
+		log.Infof("Copy of %v stopped at lastpk: %v", tableName, sLastPk)
+		return nil
+	default:
+	}
+	if err != nil {
+		return err
+	}
+	log.Infof("Copy of %v finished at lastpk: %v", tableName, sLastPk)
+	bs.stateStore.CopyCompleted(tableName)
+	return nil
+}
+
+func (bs *BlStreamer) PutRows(ctx context.Context, rows *binlogdatapb.VStreamRowsResponse) error {
+	fieldEvent := &binlogdatapb.FieldEvent{
+		TableName: initialPlan.SendRule.Match,
+		Fields:    rows.Fields,
+	}
+	bs.tablePlan, err = plan.buildExecutionPlan(fieldEvent)
+	if err != nil {
+		return err
+	}
+}
+
+// copyTable performs the synchronized copy of the next set of rows from
+// the current table being copied. Each packet received is transactionally
+// committed with the lastpk. This allows for consistent resumability.
+func (bs *BlStreamer) copyTable(ctx context.Context, tableName, filter string, copyState map[string]*sqltypes.Result) error {
+	log.Infof("Copying table %s, lastpk: %v", tableName, copyState[tableName])
+
+	ctx, cancel := context.WithTimeout(ctx, copyTimeout)
+	defer cancel()
+
+	var lastpkpb *querypb.QueryResult
+	if lastpkqr := copyState[tableName]; lastpkqr != nil {
+		lastpkpb = sqltypes.ResultToProto3(lastpkqr)
+	}
+
+	var pkfields []*querypb.Field
+	var sLastPk string
+
+	err = bs.vsClient.VStreamRows(ctx, filter, lastpkpb, func(rows *binlogdatapb.VStreamRowsResponse) error {
+		select {
+		case <-ctx.Done():
+			return io.EOF
+		default:
+		}
+		if bs.tablePlan == nil {
+			if len(rows.Fields) == 0 {
+				return fmt.Errorf("expecting field event first, got: %v", rows)
+			}
+			if err := bs.fastForward(ctx, copyState, rows.Gtid); err != nil {
+				return err
+			}
+			pkfields = rows.Pkfields
+		}
+		if len(rows.Rows) == 0 {
+			return nil
+		}
+
+		bs.PutRows(ctx, rows)
 
 		if sLastPk, err = bs.stateStore.UpdateCopyState(tableName, rows.Lastpk, pkfields); err != nil {
 			return err
