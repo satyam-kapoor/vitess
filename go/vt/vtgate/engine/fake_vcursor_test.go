@@ -53,6 +53,9 @@ type noopVCursor struct {
 	ctx context.Context
 }
 
+func (t noopVCursor) Reserve() {
+}
+
 func (t noopVCursor) SetUDV(key string, value interface{}) error {
 	panic("implement me")
 }
@@ -158,6 +161,9 @@ func (f *loggingVCursor) SetUDV(key string, value interface{}) error {
 
 func (f *loggingVCursor) SetSysVar(name string, expr string) {
 	f.log = append(f.log, fmt.Sprintf("SysVar set with (%s,%v)", name, expr))
+}
+
+func (f *loggingVCursor) Reserve() {
 }
 
 func (f *loggingVCursor) ExecuteVSchema(keyspace string, vschemaDDL *sqlparser.DDL) error {
