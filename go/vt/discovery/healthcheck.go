@@ -45,6 +45,8 @@ import (
 	"sync"
 	"time"
 
+	context2 "golang.org/x/net/context"
+
 	"vitess.io/vitess/go/vt/proto/vtrpc"
 	"vitess.io/vitess/go/vt/vterrors"
 	"vitess.io/vitess/go/vt/vttablet/queryservice"
@@ -435,7 +437,7 @@ func (hc *HealthCheckImpl) updateHealth(th *TabletHealth, shr *query.StreamHealt
 
 }
 
-// Subscribe adds a listener. Only used for testing right now
+// Subscribe adds a listener. Used by vtgate buffer to learn about master changes.
 func (hc *HealthCheckImpl) Subscribe() chan *TabletHealth {
 	hc.subMu.Lock()
 	defer hc.subMu.Unlock()
@@ -444,7 +446,7 @@ func (hc *HealthCheckImpl) Subscribe() chan *TabletHealth {
 	return c
 }
 
-// Unsubscribe removes a listener. Only used for testing right now
+// Unsubscribe removes a listener.
 func (hc *HealthCheckImpl) Unsubscribe(c chan *TabletHealth) {
 	hc.subMu.Lock()
 	defer hc.subMu.Unlock()
@@ -767,4 +769,39 @@ func (hc *HealthCheckImpl) stateChecksum() int64 {
 	}
 
 	return int64(crc32.ChecksumIEEE(buf.Bytes()))
+}
+
+//HealthCheck declares what the TabletGateway needs from the HealthCheck
+type HealthCheck interface {
+	// CacheStatus returns a displayable version of the health check cache.
+	CacheStatus() TabletsCacheStatusList
+
+	// Close stops the healthcheck.
+	Close() error
+
+	// WaitForAllServingTablets waits for at least one healthy serving tablet in
+	// each given target before returning.
+	// It will return ctx.Err() if the context is canceled.
+	// It will return an error if it can't read the necessary topology records.
+	WaitForAllServingTablets(ctx context2.Context, targets []*query.Target) error
+
+	// TabletConnection returns the TabletConn of the given tablet.
+	TabletConnection(alias *topodata.TabletAlias) (queryservice.QueryService, error)
+
+	// RegisterStats registers the connection counts stats
+	RegisterStats()
+
+	// GetHealthyTabletStats returns only the healthy tablets.
+	// The returned array is owned by the caller.
+	// For TabletType_MASTER, this will only return at most one entry,
+	// the most recent tablet of type master.
+	// This returns a copy of the data so that callers can access without
+	// synchronization
+	GetHealthyTabletStats(target *query.Target) []*TabletHealth
+
+	// Subscribe adds a listener. Used by vtgate buffer to learn about master changes.
+	Subscribe() chan *TabletHealth
+
+	// Unsubscribe removes a listener.
+	Unsubscribe(c chan *TabletHealth)
 }
