@@ -17,7 +17,9 @@ limitations under the License.
 package endtoend
 
 import (
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +30,23 @@ import (
 	querypb "vitess.io/vitess/go/vt/proto/query"
 	topodatapb "vitess.io/vitess/go/vt/proto/topodata"
 )
+
+func BenchmarkSequence(b *testing.B) {
+	client := framework.NewClient()
+	var wg sync.WaitGroup
+	threads := 50
+	fmt.Printf("threads: %d\n", threads)
+	for i := 0; i < b.N; i++ {
+		wg.Add(threads)
+		for j := 0; j < threads; j++ {
+			go func() {
+				defer wg.Done()
+				client.Execute("select next 1 values from sequence_bench", nil)
+			}()
+		}
+		wg.Wait()
+	}
+}
 
 func TestSequence(t *testing.T) {
 	want := &sqltypes.Result{

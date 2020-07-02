@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -201,6 +202,55 @@ func exec(t *testing.T, conn *mysql.Conn, query string) *sqltypes.Result {
 	qr, err := conn.ExecuteFetch(query, 1000, true)
 	require.Nil(t, err)
 	return qr
+}
+
+func bexec(b *testing.B, conn *mysql.Conn, query string) *sqltypes.Result {
+	qr, err := conn.ExecuteFetch(query, 1000, true)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return qr
+}
+
+func BenchmarkSequence(b *testing.B) {
+	ctx := context.Background()
+	vtParams := mysql.ConnParams{
+		Host: "localhost",
+		Port: clusterInstance.VtgateMySQLPort,
+	}
+	conn, err := mysql.Connect(ctx, &vtParams)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+
+	bexec(b, conn, "delete from sequence_test_seq")
+	bexec(b, conn, "insert into sequence_test_seq(id, next_id, cache) values(0,1,10000)")
+
+	threads := 50
+	fmt.Printf("threads: %d\n", threads)
+	conns := make([]*mysql.Conn, threads)
+	for i := 0; i < threads; i++ {
+		conn, err := mysql.Connect(ctx, &vtParams)
+		if err != nil {
+			b.Fatal(err)
+		}
+		conns[i] = conn
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < b.N; i++ {
+		wg.Add(threads)
+		for j := 0; j < threads; j++ {
+			go func(j int) {
+				defer wg.Done()
+				bexec(b, conns[j], "select next 1 values from sequence_test_seq")
+			}(j)
+		}
+		wg.Wait()
+	}
+	for _, conn := range conns {
+		conn.Close()
+	}
 }
 
 func TestSeq(t *testing.T) {
