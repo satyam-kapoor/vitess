@@ -40,7 +40,6 @@ import (
 	"vitess.io/vitess/go/trace"
 	"vitess.io/vitess/go/vt/callerid"
 	"vitess.io/vitess/go/vt/dbconfigs"
-	"vitess.io/vitess/go/vt/dbconnpool"
 	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/logutil"
 	binlogdatapb "vitess.io/vitess/go/vt/proto/binlogdata"
@@ -521,13 +520,6 @@ func (tsv *TabletServer) decideAction(tabletType topodatapb.TabletType, serving 
 }
 
 func (tsv *TabletServer) fullStart() (err error) {
-	c, err := dbconnpool.NewDBConnection(context.TODO(), tsv.config.DB.AppWithDB())
-	if err != nil {
-		log.Errorf("error creating db app connection: %v", err)
-		return err
-	}
-	c.Close()
-
 	if err := tsv.se.Open(); err != nil {
 		log.Errorf("Could not load historian, but starting the query service anyways: %v", err)
 	}

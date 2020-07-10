@@ -28,6 +28,7 @@ import (
 
 func getTestSchemaEngine(t *testing.T) (*Engine, *fakesqldb.DB, func()) {
 	db := fakesqldb.New(t)
+	db.AddQuery("use ``", &sqltypes.Result{})
 	db.AddQuery("select unix_timestamp()", sqltypes.MakeTestResult(sqltypes.MakeTestFields(
 		"t",
 		"int64"),

@@ -17,6 +17,7 @@ limitations under the License.
 package schema
 
 import (
+	"errors"
 	"expvar"
 	"fmt"
 	"net/http"
@@ -205,9 +206,28 @@ func TestOpenAndReload(t *testing.T) {
 	assert.Equal(t, want, se.GetSchema())
 }
 
+func TestOpenAndCreateDB(t *testing.T) {
+	db := fakesqldb.New(t)
+	defer db.Close()
+	db.AddRejectedQuery("use ``", errors.New("general error"))
+	se := newEngine(10, 1*time.Second, 1*time.Second, false, db)
+	err := se.Open()
+	assert.Contains(t, err.Error(), "general error")
+
+	dbError := &mysql.SQLError{
+		Num:     mysql.ERBadDb,
+		Message: "db error",
+	}
+	db.AddRejectedQuery("use ``", dbError)
+	db.AddRejectedQuery("create database if not exists ``", errors.New("create error"))
+	err = se.Open()
+	assert.Contains(t, err.Error(), "create error")
+}
+
 func TestOpenFailedDueToMissMySQLTime(t *testing.T) {
 	db := fakesqldb.New(t)
 	defer db.Close()
+	db.AddQuery("use ``", &sqltypes.Result{})
 	db.AddQuery("select unix_timestamp()", &sqltypes.Result{
 		// Make this query fail by returning 2 values.
 		Fields: []*querypb.Field{
@@ -229,6 +249,7 @@ func TestOpenFailedDueToMissMySQLTime(t *testing.T) {
 func TestOpenFailedDueToIncorrectMysqlRowNum(t *testing.T) {
 	db := fakesqldb.New(t)
 	defer db.Close()
+	db.AddQuery("use ``", &sqltypes.Result{})
 	db.AddQuery("select unix_timestamp()", &sqltypes.Result{
 		Fields: []*querypb.Field{{
 			Type: sqltypes.Uint64,
@@ -249,6 +270,7 @@ func TestOpenFailedDueToIncorrectMysqlRowNum(t *testing.T) {
 func TestOpenFailedDueToInvalidTimeFormat(t *testing.T) {
 	db := fakesqldb.New(t)
 	defer db.Close()
+	db.AddQuery("use ``", &sqltypes.Result{})
 	db.AddQuery("select unix_timestamp()", &sqltypes.Result{
 		Fields: []*querypb.Field{{
 			Type: sqltypes.VarChar,
@@ -343,11 +365,13 @@ func TestStatsURL(t *testing.T) {
 
 func newEngine(queryCacheSize int, reloadTime time.Duration, idleTimeout time.Duration, strict bool, db *fakesqldb.DB) *Engine {
 	config := tabletenv.NewDefaultConfig()
+	config.Tablet.CreateDB = true
 	config.QueryCacheSize = queryCacheSize
 	config.SchemaReloadIntervalSeconds = float64(reloadTime) / 1e9
 	config.OltpReadPool.IdleTimeoutSeconds = float64(idleTimeout / 1e9)
 	config.OlapReadPool.IdleTimeoutSeconds = float64(idleTimeout / 1e9)
 	config.TxPool.IdleTimeoutSeconds = float64(idleTimeout / 1e9)
+	config.DB = newDBConfigs(db)
 	se := NewEngine(tabletenv.NewEnv(config, "SchemaTest"))
 	se.InitDBConfig(newDBConfigs(db).DbaWithDB())
 	return se

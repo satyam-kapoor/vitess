@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"vitess.io/vitess/go/vt/dbconnpool"
 	"vitess.io/vitess/go/vt/vtgate/evalengine"
 
 	"golang.org/x/net/context"
@@ -58,6 +59,7 @@ type Engine struct {
 	isOpen     bool
 	tables     map[string]*Table
 	lastChange int64
+	createDB   bool
 	reloadTime time.Duration
 	//the position at which the schema was last loaded. it is only used in conjunction with ReloadAt
 	reloadAtPos mysql.Position
@@ -82,6 +84,7 @@ func NewEngine(env tabletenv.Env) *Engine {
 			IdleTimeoutSeconds: env.Config().OltpReadPool.IdleTimeoutSeconds,
 		}),
 		ticks:      timer.NewTimer(reloadTime),
+		createDB:   env.Config().Tablet.CreateDB,
 		reloadTime: reloadTime,
 	}
 	_ = env.Exporter().NewGaugeDurationFunc("SchemaReloadTime", "vttablet keeps table schemas in its own memory and periodically refreshes it from MySQL. This config controls the reload time.", se.ticks.Interval)
@@ -116,6 +119,10 @@ func (se *Engine) Open() error {
 		return nil
 	}
 
+	if err := se.setupDB(); err != nil {
+		return err
+	}
+
 	ctx := tabletenv.LocalContext()
 
 	// The function we're in is supposed to be idempotent, but this conns.Open()
@@ -148,6 +155,25 @@ func (se *Engine) Open() error {
 
 	se.isOpen = true
 	return nil
+}
+
+func (se *Engine) setupDB() error {
+	conn, err := dbconnpool.NewDBConnection(context.TODO(), se.env.Config().DB.DbaConnector())
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	dbname := se.env.Config().DB.DBName
+	_, err = conn.ExecuteFetch(fmt.Sprintf("use `%s`", dbname), 1, false)
+	if merr, isSQLErr := err.(*mysql.SQLError); !isSQLErr || merr.Num != mysql.ERBadDb {
+		return err
+	}
+	if !se.createDB {
+		return err
+	}
+	_, err = conn.ExecuteFetch(fmt.Sprintf("create database if not exists `%s`", dbname), 1, false)
+	return err
 }
 
 // IsOpen checks if engine is open

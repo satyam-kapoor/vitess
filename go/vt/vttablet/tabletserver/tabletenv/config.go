@@ -75,6 +75,8 @@ var (
 )
 
 func init() {
+	flag.BoolVar(&currentConfig.Tablet.CreateDB, "init_create_db", defaultConfig.Tablet.CreateDB, "(init parameter) create the database if it does not exist.")
+
 	flag.IntVar(&currentConfig.OltpReadPool.Size, "queryserver-config-pool-size", defaultConfig.OltpReadPool.Size, "query server read pool size, connection pool is used by regular queries (non streaming, not in a transaction)")
 	flag.IntVar(&currentConfig.OltpReadPool.PrefillParallelism, "queryserver-config-pool-prefill-parallelism", defaultConfig.OltpReadPool.PrefillParallelism, "query server read pool prefill parallelism, a non-zero value will prefill the pool using the specified parallism.")
 	flag.IntVar(&currentConfig.OlapReadPool.Size, "queryserver-config-stream-pool-size", defaultConfig.OlapReadPool.Size, "query server stream connection pool size, stream pool is used by stream queries: queries that return results to client in a streaming fashion")
@@ -190,6 +192,8 @@ func Init() {
 
 // TabletConfig contains all the configuration for query service
 type TabletConfig struct {
+	Tablet TabletParams `json:"tablet,omitempty"`
+
 	DB *dbconfigs.DBConfigs `json:"db,omitempty"`
 
 	OltpReadPool ConnPoolConfig `json:"oltpReadPool,omitempty"`
@@ -228,6 +232,11 @@ type TabletConfig struct {
 	TransactionLimitConfig `json:"-"`
 
 	EnforceStrictTransTables bool `json:"-"`
+}
+
+// TabletParams contains the tablet parameters.
+type TabletParams struct {
+	CreateDB bool `json:"createDB,omitempty"`
 }
 
 // ConnPoolConfig contains the config for a conn pool.

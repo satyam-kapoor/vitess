@@ -29,6 +29,7 @@ import (
 // be added to load an initial set of tables into the schema.
 func Queries() map[string]*sqltypes.Result {
 	return map[string]*sqltypes.Result{
+		"use ``": {},
 		"select unix_timestamp()": {
 			Fields: []*querypb.Field{{
 				Type: sqltypes.Uint64,

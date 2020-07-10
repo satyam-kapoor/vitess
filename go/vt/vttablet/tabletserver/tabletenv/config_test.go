@@ -72,6 +72,7 @@ oltpReadPool:
   prefillParallelism: 30
   size: 16
   timeoutSeconds: 10
+tablet: {}
 txPool: {}
 `
 	assert.Equal(t, wantBytes, string(gotBytes))
@@ -124,6 +125,7 @@ oltpReadPool:
 queryCacheSize: 5000
 schemaReloadIntervalSeconds: 1800
 streamBufferSize: 32768
+tablet: {}
 txPool:
   idleTimeoutSeconds: 1800
   maxWaiters: 5000
