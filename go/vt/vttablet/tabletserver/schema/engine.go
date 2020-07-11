@@ -182,7 +182,8 @@ func (se *Engine) MakeNonMaster() {
 	// This function is tested through endtoend test.
 	se.mu.Lock()
 	defer se.mu.Unlock()
-	for _, t := range se.tables {
+	for name, t := range se.tables {
+		log.Infof("DEBUG: resetting sequence: %v", name)
 		if t.SequenceInfo != nil {
 			t.SequenceInfo.Lock()
 			t.SequenceInfo.NextVal = 0
@@ -261,10 +262,11 @@ func (se *Engine) reload(ctx context.Context) error {
 		tableName := row[0].ToString()
 		curTables[tableName] = true
 		createTime, _ := evalengine.ToInt64(row[2])
+		log.Infof("DEBUG: skipping table reload: %v", tableName)
 		if _, ok := se.tables[tableName]; ok && createTime < se.lastChange {
 			continue
 		}
-		log.V(2).Infof("Reading schema for table: %s", tableName)
+		log.Infof("DEBUG: reading schema for table: %v", tableName)
 		table, err := LoadTable(conn, tableName, row[1].ToString(), row[3].ToString())
 		if err != nil {
 			rec.RecordError(err)
@@ -272,8 +274,10 @@ func (se *Engine) reload(ctx context.Context) error {
 		}
 		changedTables[tableName] = table
 		if _, ok := se.tables[tableName]; ok {
+			log.Infof("DEBUG: table was altered: %v", tableName)
 			altered = append(altered, tableName)
 		} else {
+			log.Infof("DEBUG: table is new: %v", tableName)
 			created = append(created, tableName)
 		}
 	}
@@ -287,6 +291,7 @@ func (se *Engine) reload(ctx context.Context) error {
 		if curTables[tableName] {
 			continue
 		}
+		log.Infof("DEBUG: table table was dropped: %v", tableName)
 		dropped = append(dropped, tableName)
 		delete(se.tables, tableName)
 	}
@@ -404,6 +409,7 @@ func (se *Engine) broadcast(created, altered, dropped []string) {
 		return
 	}
 
+	log.Infof("DEBUG: broadcasting: created: %v altered: %v dropped: %v", created, altered, dropped)
 	se.notifierMu.Lock()
 	defer se.notifierMu.Unlock()
 	s := make(map[string]*Table, len(se.tables))

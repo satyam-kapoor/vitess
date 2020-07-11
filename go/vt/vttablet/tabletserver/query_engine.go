@@ -373,10 +373,12 @@ func (qe *QueryEngine) IsMySQLReachable() bool {
 }
 
 func (qe *QueryEngine) schemaChanged(tables map[string]*schema.Table, created, altered, dropped []string) {
+	log.Infof("DEBUG: schemaChanged: %#v", tables)
 	qe.mu.Lock()
 	defer qe.mu.Unlock()
 	qe.tables = tables
 	if len(altered) != 0 || len(dropped) != 0 {
+		log.Infof("DEBUG: plans cleared")
 		qe.plans.Clear()
 	}
 }

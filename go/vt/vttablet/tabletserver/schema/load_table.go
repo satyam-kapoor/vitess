@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"vitess.io/vitess/go/vt/log"
 	"vitess.io/vitess/go/vt/sqlparser"
 	"vitess.io/vitess/go/vt/vttablet/tabletserver/connpool"
 	"vitess.io/vitess/go/vt/vttablet/tabletserver/tabletenv"
@@ -36,6 +37,7 @@ func LoadTable(conn *connpool.DBConn, tableName string, tableType string, commen
 	}
 	switch {
 	case strings.Contains(comment, "vitess_sequence"):
+		log.Infof("DEBUG: identified sequence table: %s", tableName)
 		ta.Type = Sequence
 		ta.SequenceInfo = &SequenceInfo{}
 	case strings.Contains(comment, "vitess_message"):
