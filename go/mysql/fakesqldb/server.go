@@ -553,6 +553,14 @@ func (db *DB) QueryLog() string {
 	return strings.Join(db.querylog, ";")
 }
 
+//LastQuery returns
+func (db *DB) LastQuery() string {
+	if len(db.querylog) == 0 {
+		return "EMPTY QUERYLOG!"
+	}
+	return db.querylog[len(db.querylog)-1]
+}
+
 //ResetQueryLog resets the query log
 func (db *DB) ResetQueryLog() {
 	db.querylog = nil
@@ -694,4 +702,9 @@ func (db *DB) VerifyAllExecutedOrFail() {
 	if db.expectedExecuteFetchIndex != len(db.expectedExecuteFetch) {
 		db.t.Errorf("%v: not all expected queries were executed. leftovers: %v", db.name, db.expectedExecuteFetch[db.expectedExecuteFetchIndex:])
 	}
+}
+
+//Name returns the name
+func (db *DB) Name() string {
+	return db.name
 }

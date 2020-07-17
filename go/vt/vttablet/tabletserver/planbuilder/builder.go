@@ -132,6 +132,35 @@ func analyzeSet(set *sqlparser.Set) (plan *Plan) {
 	}
 }
 
+const tablesIn = "tables_in_"
+
+func analyzeShow(show *sqlparser.Show, keyspace string, dbName string) (plan *Plan) {
+	rewriteShowStatement(show, keyspace, dbName)
+	return &Plan{
+		PlanID:    PlanOtherRead,
+		FullQuery: GenerateFullQuery(show),
+	}
+}
+
+// rewriteShowStatement replaces the keyspace with the database name
+func rewriteShowStatement(show *sqlparser.Show, keyspace string, dbName string) {
+	opt := show.ShowTablesOpt
+	if opt != nil {
+		if opt.DbName == keyspace {
+			opt.DbName = dbName
+		}
+	}
+	sqlparser.Rewrite(show.ShowTablesOpt.Filter, func(cursor *sqlparser.Cursor) bool {
+		switch n := cursor.Node().(type) {
+		case *sqlparser.ColName:
+			if n.Name.EqualString(tablesIn + keyspace) {
+				n.Name = sqlparser.NewColIdent(tablesIn + dbName)
+			}
+		}
+		return true
+	}, nil)
+}
+
 func lookupTable(tableExprs sqlparser.TableExprs, tables map[string]*schema.Table) *schema.Table {
 	if len(tableExprs) > 1 {
 		return nil

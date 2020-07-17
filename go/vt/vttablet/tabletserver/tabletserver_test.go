@@ -537,6 +537,24 @@ func TestMakeSureToCloseDbConnWhenBeginQueryFails(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestShowTablesWithFilter(t *testing.T) {
+	db, tsv := setupTabletServerTest(t)
+	defer tsv.StopService()
+	defer db.Close()
+
+	db.AddQueryPattern(".*", &sqltypes.Result{})
+	target := querypb.Target{TabletType: topodatapb.TabletType_MASTER, Keyspace: "db1"}
+	options := &querypb.ExecuteOptions{}
+
+	_, err := tsv.Execute(ctx, &target, "show tables from db1 where Tables_in_db1 = 'table1'", nil, 0, 0, options)
+	require.NoError(t, err)
+	require.Equal(t, "show tables from fakesqldb where tables_in_fakesqldb = 'table1'", db.LastQuery())
+
+	_, err = tsv.Execute(ctx, &target, "show tables where Tables_in_db1 = 'table1'", nil, 0, 0, options)
+	require.NoError(t, err)
+	require.Equal(t, "show tables where tables_in_fakesqldb = 'table1'", db.LastQuery())
+}
+
 func TestTabletServerReserveAndBeginCommit(t *testing.T) {
 	db, tsv := setupTabletServerTest(t)
 	defer tsv.StopService()
@@ -2164,7 +2182,9 @@ func setupTabletServerTestCustom(t *testing.T, config *tabletenv.TabletConfig) (
 	tsv := NewTabletServer("TabletServerTest", config, memorytopo.NewServer(""), topodatapb.TabletAlias{})
 	require.Equal(t, StateNotConnected, tsv.sm.State())
 	dbcfgs := newDBConfigs(db)
-	target := querypb.Target{TabletType: topodatapb.TabletType_MASTER}
+	target := querypb.Target{TabletType: topodatapb.TabletType_MASTER, Keyspace: "db1"}
+	cmd := fmt.Sprintf("use `%s`", db.Name())
+	db.AddQuery(cmd, &sqltypes.Result{})
 	err := tsv.StartService(target, dbcfgs)
 	require.NoError(t, err)
 	return db, tsv
