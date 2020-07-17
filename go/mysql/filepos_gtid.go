@@ -44,8 +44,8 @@ func parseFilePosGTID(s string) (GTID, error) {
 	}, nil
 }
 
-// parseFilePosGTIDSet is registered as a GTIDSet parser.
-func parseFilePosGTIDSet(s string) (GTIDSet, error) {
+// ParseFilePosGTIDSet is registered as a GTIDSet parser.
+func ParseFilePosGTIDSet(s string) (GTIDSet, error) {
 	gtid, err := parseFilePosGTID(s)
 	if err != nil {
 		return nil, err
@@ -149,6 +149,6 @@ func (gtid filePosGTID) Union(other GTIDSet) GTIDSet {
 
 func init() {
 	gtidParsers[FilePosFlavorID] = parseFilePosGTID
-	gtidSetParsers[FilePosFlavorID] = parseFilePosGTIDSet
+	gtidSetParsers[FilePosFlavorID] = ParseFilePosGTIDSet
 	flavors[FilePosFlavorID] = newFilePosFlavor
 }
