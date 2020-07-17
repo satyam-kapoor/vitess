@@ -757,12 +757,20 @@ options:PassthroughDMLs
   "FullQuery": "show a"
 }
 
-# show
-"show tables from db1 where Tables_in_db1='table1'"
+# show tables with filter
+"show tables from keyspace where Tables_in_keyspace='table1'"
 {
   "PlanID": "OtherRead",
   "TableName": "",
-  "FullQuery": "show tables from db1 where Tables_in_vt_db1='table1'"
+  "FullQuery": "show tables from dbname where tables_in_dbname = 'table1'"
+}
+
+# show tables with filter no matter case
+"show tables from KeYsPaCe where Tables_in_keYSPace='table1'"
+{
+  "PlanID": "OtherRead",
+  "TableName": "",
+  "FullQuery": "show tables from dbname where tables_in_dbname = 'table1'"
 }
 
 # describe

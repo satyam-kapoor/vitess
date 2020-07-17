@@ -17,6 +17,8 @@ limitations under the License.
 package planbuilder
 
 import (
+	"strings"
+
 	"vitess.io/vitess/go/vt/sqlparser"
 	"vitess.io/vitess/go/vt/vterrors"
 	"vitess.io/vitess/go/vt/vttablet/tabletserver/schema"
@@ -146,19 +148,20 @@ func analyzeShow(show *sqlparser.Show, keyspace string, dbName string) (plan *Pl
 func rewriteShowStatement(show *sqlparser.Show, keyspace string, dbName string) {
 	opt := show.ShowTablesOpt
 	if opt != nil {
-		if opt.DbName == keyspace {
-			opt.DbName = dbName
+		lowerDbName := strings.ToLower(dbName)
+		if strings.EqualFold(opt.DbName, keyspace) {
+			opt.DbName = lowerDbName
 		}
-	}
-	sqlparser.Rewrite(show.ShowTablesOpt.Filter, func(cursor *sqlparser.Cursor) bool {
-		switch n := cursor.Node().(type) {
-		case *sqlparser.ColName:
-			if n.Name.EqualString(tablesIn + keyspace) {
-				n.Name = sqlparser.NewColIdent(tablesIn + dbName)
+		sqlparser.Rewrite(show.ShowTablesOpt.Filter, func(cursor *sqlparser.Cursor) bool {
+			switch n := cursor.Node().(type) {
+			case *sqlparser.ColName:
+				if n.Name.EqualString(tablesIn + keyspace) {
+					n.Name = sqlparser.NewColIdent(tablesIn + lowerDbName)
+				}
 			}
-		}
-		return true
-	}, nil)
+			return true
+		}, nil)
+	}
 }
 
 func lookupTable(tableExprs sqlparser.TableExprs, tables map[string]*schema.Table) *schema.Table {
