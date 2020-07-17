@@ -18,6 +18,7 @@ package tabletserver
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,6 +87,8 @@ const (
 	// requests and transactions to conclude.
 	StateShuttingDown
 )
+
+var hardShutdownTimeout = flag.Duration("hard_shutdown_timeout", 0, "If a shutdown takes longer than this amount, vttablet will be hard-crashed, default value is 10x query timeout")
 
 // logPoolFull is for throttling transaction / query pool full messages in the log.
 var logPoolFull = logutil.NewThrottledLogger("PoolFull", 1*time.Minute)
@@ -658,11 +661,15 @@ func (tsv *TabletServer) closeAll() {
 func (tsv *TabletServer) setTimeBomb() chan struct{} {
 	done := make(chan struct{})
 	go func() {
-		qt := tsv.QueryTimeout.Get()
-		if qt == 0 {
-			return
+		timeout := *hardShutdownTimeout
+		if timeout == 0 {
+			qt := tsv.QueryTimeout.Get()
+			if qt == 0 {
+				return
+			}
+			timeout = 10 * qt
 		}
-		tmr := time.NewTimer(10 * qt)
+		tmr := time.NewTimer(timeout)
 		defer tmr.Stop()
 		select {
 		case <-tmr.C:
