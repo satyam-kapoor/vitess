@@ -377,9 +377,9 @@ func (vc *vcursorImpl) SetSysVar(name string, expr string) {
 	vc.safeSession.SetSystemVariable(name, expr)
 }
 
-//Reserve implements the SessionActions interface
-func (vc *vcursorImpl) Reserve() {
-	vc.safeSession.Reserved = true
+//InReservedConn implements the SessionActions interface
+func (vc *vcursorImpl) InReservedConn() {
+	vc.safeSession.Session.InReservedConn = true
 }
 
 // Destination implements the ContextVSchema interface

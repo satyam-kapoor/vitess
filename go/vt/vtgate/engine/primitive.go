@@ -92,8 +92,8 @@ type (
 
 		SetSysVar(name string, expr string)
 
-		// Reserve marks this session as needing a dedicated connection to mysql
-		Reserve()
+		// InReservedConn marks this session as needing a dedicated connection to mysql
+		InReservedConn()
 	}
 
 	// Plan represents the execution strategy for a given query.
