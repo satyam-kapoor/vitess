@@ -78,7 +78,11 @@ func VerifyRowsInTablet(t *testing.T, vttablet *Vttablet, ksName string, expecte
 	timeout := time.Now().Add(10 * time.Second)
 	for time.Now().Before(timeout) {
 		qr, err := vttablet.VttabletProcess.QueryTablet("select * from vt_insert_test", ksName, true)
-		require.Nil(t, err)
+		if sqlErr, ok := err.(*mysql.SQLError); ok && sqlErr.Num == mysql.ERNoSuchTable {
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+		require.NoError(t, err)
 		if len(qr.Rows) == expectedRows {
 			return
 		}
